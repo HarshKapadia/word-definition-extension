@@ -77,7 +77,7 @@ jobs:
         cat .eslintrc.json
         
     - name: Run ESLint
-      run: npx eslint --no-eslintrc --config .eslintrc.json .
+      run: npx eslint --config .eslintrc.json .
       
     - name: Run tests
       run: npm test
