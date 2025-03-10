@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "Quick Word Lookup",
+    "version": "1.0",
+    "description": "Get definitions of selected words in a popup",
+    "permissions": ["contextMenus", "storage"],
+    "host_permissions": ["https://api.dictionaryapi.dev/*"],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"],
+        "css": ["styles.css"]
+      }
+    ]
+  }
