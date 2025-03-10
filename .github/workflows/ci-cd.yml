@@ -25,8 +25,8 @@ jobs:
         
     - name: Create ESLint config file
       run: |
-        cat > .eslintrc.json << 'EOL'
-        {
+        cat > .eslintrc.cjs << 'EOL'
+        module.exports = {
           "env": {
             "browser": true,
             "es2021": true,
@@ -41,7 +41,7 @@ jobs:
             "no-unused-vars": "warn"
           },
           "ignorePatterns": ["tests/**/*", "node_modules/**/*"]
-        }
+        };
         EOL
         
     - name: Set up test file
@@ -51,7 +51,7 @@ jobs:
         const fs = require("fs");
         
         test("manifest.json exists and is valid", () => {
-          const manifest = JSON.parse(fs.readFileSync("manifest.json"));
+          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf-8"));
           expect(manifest.manifest_version).toBeDefined();
           expect(manifest.name).toBeDefined();
           expect(manifest.version).toBeDefined();
@@ -74,10 +74,10 @@ jobs:
     - name: Verify ESLint config
       run: |
         echo "ESLint config file contents:"
-        cat .eslintrc.json
+        cat .eslintrc.cjs
         
     - name: Run ESLint
-      run: npx eslint --config .eslintrc.json .
+      run: npx eslint --config .eslintrc.cjs .
       
     - name: Run tests
       run: npm test
