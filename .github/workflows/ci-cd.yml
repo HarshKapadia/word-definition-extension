@@ -23,9 +23,10 @@ jobs:
         npm init -y
         npm install eslint jest --save-dev
         
-    - name: Create ESLint config
+    - name: Create ESLint config file
       run: |
-        echo '{
+        cat > .eslintrc.json << 'EOL'
+        {
           "env": {
             "browser": true,
             "es2021": true,
@@ -38,13 +39,16 @@ jobs:
           },
           "rules": {
             "no-unused-vars": "warn"
-          }
-        }' > .eslintrc.json
+          },
+          "ignorePatterns": ["tests/**/*", "node_modules/**/*"]
+        }
+        EOL
         
     - name: Set up test file
       run: |
         mkdir -p tests
-        echo 'const fs = require("fs");
+        cat > tests/extension.test.js << 'EOL'
+        const fs = require("fs");
         
         test("manifest.json exists and is valid", () => {
           const manifest = JSON.parse(fs.readFileSync("manifest.json"));
@@ -59,15 +63,21 @@ jobs:
         
         test("styles.css exists", () => {
           expect(fs.existsSync("styles.css")).toBe(true);
-        });' > tests/extension.test.js
+        });
+        EOL
         
     - name: Add Jest config to package.json
       run: |
         npm pkg set "scripts.test"="jest"
         npm pkg set "jest"="{\"testEnvironment\": \"node\"}"
         
-    - name: Lint files
-      run: npx eslint .
+    - name: Verify ESLint config
+      run: |
+        echo "ESLint config file contents:"
+        cat .eslintrc.json
+        
+    - name: Run ESLint
+      run: npx eslint --no-eslintrc --config .eslintrc.json .
       
     - name: Run tests
       run: npm test
