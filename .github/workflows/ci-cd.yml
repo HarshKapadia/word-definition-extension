@@ -1,10 +1,11 @@
-name: Browser Extension CI/CD
+name: Word Definition Extension CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   lint-and-test:
@@ -17,84 +18,55 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-        
+        cache: 'npm'
+    
     - name: Install dependencies
-      run: |
-        npm init -y
-        npm install eslint jest --save-dev
-        
-    - name: Create ESLint config file
-      run: |
-        cat > .eslintrc.cjs << 'EOL'
-        module.exports = {
-          "env": {
-            "browser": true,
-            "es2021": true,
-            "webextensions": true
-          },
-          "extends": "eslint:recommended",
-          "parserOptions": {
-            "ecmaVersion": "latest",
-            "sourceType": "module"
-          },
-          "rules": {
-            "no-unused-vars": "warn"
-          },
-          "ignorePatterns": ["tests/**/*", "node_modules/**/*"]
-        };
-        EOL
-        
-    - name: Set up test file
-      run: |
-        mkdir -p tests
-        cat > tests/extension.test.js << 'EOL'
-        const fs = require("fs");
-        
-        test("manifest.json exists and is valid", () => {
-          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf-8"));
-          expect(manifest.manifest_version).toBeDefined();
-          expect(manifest.name).toBeDefined();
-          expect(manifest.version).toBeDefined();
-        });
-        
-        test("content.js exists", () => {
-          expect(fs.existsSync("content.js")).toBe(true);
-        });
-        
-        test("styles.css exists", () => {
-          expect(fs.existsSync("styles.css")).toBe(true);
-        });
-        EOL
-        
-    - name: Add Jest config to package.json
-      run: |
-        npm pkg set "scripts.test"="jest"
-        npm pkg set "jest"="{\"testEnvironment\": \"node\"}"
-        
+      run: npm ci
+    
     - name: Verify ESLint config
       run: |
-        echo "ESLint config file contents:"
-        cat .eslintrc.cjs
-        
+        echo "Checking ESLint configuration file format"
+        if [ -f ".eslintrc.cjs" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ]; then
+          echo "Using legacy ESLint config format"
+        elif [ -f "eslint.config.js" ]; then
+          echo "Using flat ESLint config format"
+        fi
+    
     - name: Run ESLint
-      run: npx eslint --config .eslintrc.cjs .
-      
+      # Setting environment variable to use legacy config format
+      env:
+        ESLINT_USE_FLAT_CONFIG: 'false'
+      run: npx eslint .
+    
     - name: Run tests
       run: npm test
       
   build-and-release:
     needs: lint-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     
     steps:
     - uses: actions/checkout@v3
     
-    - name: Create zip package
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build extension
+      run: npm run build
+    
+    - name: Package extension
       run: |
-        mkdir -p dist
-        zip -r dist/word-definition-extension.zip . -x "*.git*" "node_modules/*" "tests/*" "dist/*" "*.md" "package*.json"
-        
+        mkdir -p ./dist
+        cd ./build
+        zip -r ../dist/word-definition-extension-${{ github.sha }}.zip .
+    
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -105,13 +77,13 @@ jobs:
         release_name: Release v${{ github.run_number }}
         draft: false
         prerelease: false
-        
+    
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/word-definition-extension.zip
+        asset_path: ./dist/word-definition-extension-${{ github.sha }}.zip
         asset_name: word-definition-extension.zip
         asset_content_type: application/zip
